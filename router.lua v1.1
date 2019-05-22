@@ -1,0 +1,51 @@
+local component = require("component")
+local event = require("event")
+local m = component.modem
+local rtrport = 101
+m.open(rtrport)
+
+local filepath = "hosts.txt"
+
+function readNames()
+  local Hostnames = {}
+  local file = io.open(filepath,"r")
+  for line in file:lines() do
+    local name, port, addr = line:match("(%S+):(%S+):(%S+)")
+    local arr = {name, port, addr}
+    table.insert(Hostnames, arr)
+  end
+  file:close()
+  return Hostnames
+end
+
+function findAddr(host, Hostnames)
+  local address = nil
+  local port = nil
+  for _, j in ipairs(Hostnames) do
+    for i,_ in pairs(j) do
+      if j[i] == host then
+        port = j[i+1]
+        address = j[i+2]
+      end
+    end
+  end
+  return port, address
+end
+
+function splitMessage(message)
+  local host, msg = message:match("(%S+):(%S+)")
+  return host, msg
+end
+
+while true do
+
+local Hostnames = readNames()
+local _, _, from, _, _, message = event.pull("modem_message")
+local host, msg = splitMessage(message)
+local port, address = findAddr(host, Hostnames)
+if address and msg then
+  m.send(address, port, msg)
+  m.send(from, rtrport, "Message sent")
+end
+
+end
